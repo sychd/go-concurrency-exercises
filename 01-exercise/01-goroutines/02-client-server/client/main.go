@@ -1,13 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net"
+	"os"
 )
 
 func main() {
 	// TODO: connect to server on localhost port 8000
+	conn, err := net.Dial("tcp", "localhost:8000")
 
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	mustCopy(os.Stdout, conn)
+	fmt.Println("Done")
 }
 
 // mustCopy - utility function

@@ -1,64 +1,50 @@
-package main
+package solution1
 
 import (
 	"fmt"
-	"golang.org/x/net/html"
 	"net/http"
+	"sync"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 var fetched map[string]bool
 
-type result struct {
-	url   string
-	urls  []string
-	err   error
-	depth int
-}
-
 // Crawl uses findLinks to recursively crawl
 // pages starting with url, to a maximum of depth.
-func Crawl(url string, depth int) {
-	ch := make(chan *result)
+func Crawl(url string, depth int, wg *sync.WaitGroup) {
+	// TODO: Fetch URLs in parallel.
 
-	fetch := func(url string, depth int) {
-		urls, err := findLinks(url)
-		ch <- &result{url, urls, err, depth}
+	if depth < 0 {
+		return
 	}
-	go fetch(url, depth)
-
+	urls, err := findLinks(url)
+	if err != nil {
+		// fmt.Println(err)
+		return
+	}
+	fmt.Printf("found: %s\n", url)
 	fetched[url] = true
-
-	for fetching := 1; fetching > 0; fetching-- {
-		res := <-ch
-
-		if res.err != nil {
-			continue
-		}
-
-		fmt.Printf("found:  %s\n\n", res.url)
-		if res.depth > 0 {
-			for _, u := range res.urls {
-				if !fetched[u] {
-					fetching++
-					go fetch(u, res.depth-1)
-					fetched[u] = true
-				}
-			}
+	for _, u := range urls {
+		if !fetched[u] {
+			wg.Add(1)
+			go func(url string, dep int) {
+				Crawl(url, dep-1, wg)
+				wg.Done()
+			}(u, depth)
 		}
 	}
-	close(ch)
+	return
 }
 
-func main() {
-	//solution1.Main()
-	Main()
-}
-
+// Main it is a wrong solution
 func Main() {
 	fetched = make(map[string]bool)
 	now := time.Now()
-	Crawl("http://andcloud.io", 2)
+	wg := sync.WaitGroup{}
+	Crawl("http://andcloud.io", 2, &wg)
+	wg.Wait()
 	fmt.Println("time taken:", time.Since(now))
 }
 

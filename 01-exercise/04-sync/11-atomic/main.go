@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 func main() {
@@ -18,8 +20,10 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			fmt.Println(counter)
 			for c := 0; c < 1000; c++ {
-				counter++
+				atomic.AddUint64(&counter, 1)
+				time.Sleep(4 * time.Millisecond)
 			}
 		}()
 	}

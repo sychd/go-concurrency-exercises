@@ -5,39 +5,59 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
+	"time"
 )
 
-func generator(nums ...int) <-chan int {
+func generator(done <-chan struct{}, nums ...int) <-chan int {
 	out := make(chan int)
 
 	go func() {
+		//defer close(out)
 		for _, n := range nums {
-			out <- n
+			select {
+			case out <- n:
+			case <-done:
+				break
+				//return
+			}
 		}
 		close(out)
 	}()
 	return out
 }
 
-func square(in <-chan int) <-chan int {
+func square(done <-chan struct{}, in <-chan int) <-chan int {
 	out := make(chan int)
 	go func() {
+		//defer close(out)
 		for n := range in {
-			out <- n * n
+			select {
+			case out <- n * n:
+			case <-done:
+				break
+				//return
+			}
 		}
 		close(out)
 	}()
 	return out
 }
 
-func merge(cs ...<-chan int) <-chan int {
+func merge(done <-chan struct{}, cs ...<-chan int) <-chan int {
 	out := make(chan int)
 	var wg sync.WaitGroup
 
 	output := func(c <-chan int) {
+		//defer wg.Done()
 		for n := range c {
-			out <- n
+			select {
+			case out <- n:
+			case <-done:
+				//return
+				break
+			}
 		}
 		wg.Done()
 	}
@@ -55,14 +75,20 @@ func merge(cs ...<-chan int) <-chan int {
 }
 
 func main() {
-	in := generator(2, 3)
+	done := make(chan struct{}, 1)
+	in := generator(done, 2, 3)
+	c1 := square(done, in)
+	c2 := square(done, in)
 
-	c1 := square(in)
-	c2 := square(in)
-
-	out := merge(c1, c2)
+	out := merge(done, c1, c2)
 
 	// TODO: cancel goroutines after receiving one value.
 
 	fmt.Println(<-out)
+	close(done)
+	fmt.Println(<-out)
+	time.Sleep(500 * time.Millisecond)
+	fmt.Println(<-out)
+
+	fmt.Printf("Active gorotuines: %v", runtime.NumGoroutine())
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -11,12 +12,33 @@ import (
 
 func main() {
 	start := time.Now()
-	var t *time.Timer
-	t = time.AfterFunc(randomDuration(), func() {
+	ch := make(chan bool)
+
+	t := time.AfterFunc(randomDuration(), func() {
 		fmt.Println(time.Now().Sub(start))
-		t.Reset(randomDuration())
+		ch <- true
 	})
-	time.Sleep(5 * time.Second)
+
+	for time.Since(start) < 5*time.Second {
+		<-ch
+		t.Reset(randomDuration())
+	}
+}
+
+func main2() {
+	start := time.Now()
+	wg := sync.WaitGroup{}
+
+	t := time.AfterFunc(randomDuration(), func() {
+		fmt.Println(time.Now().Sub(start))
+		wg.Done()
+	})
+
+	for time.Since(start) < 5*time.Second {
+		wg.Add(1)
+		t.Reset(randomDuration())
+		wg.Wait()
+	}
 }
 
 func randomDuration() time.Duration {

@@ -15,16 +15,23 @@ func fun(s string) {
 func main() {
 	// Direct call
 	fun("direct call")
+	c := make(chan string)
 
-	// TODO: write goroutine with different variants for function call.
-
-	// goroutine function call
+	// goroutine
+	go fun("GR-1")
 
 	// goroutine with anonymous function
+	go (func(c chan string) {
+		fun("GR-2")
+		c <- "done"
+	})(c)
 
 	// goroutine with function value call
+	funcValue := fun
+	go funcValue("GR3")
 
 	// wait for goroutines to end
+	<-c
 
 	fmt.Println("done..")
 }
