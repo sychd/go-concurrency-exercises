@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -12,14 +13,16 @@ import (
 
 var db *sql.DB
 
-func slowQuery() error {
-	_, err := db.Exec("SELECT pg_sleep(5)")
+func slowQuery(ctx context.Context) error {
+	_, err := db.ExecContext(ctx, "SELECT pg_sleep(5)")
 	return err
 }
 
 func slowHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	start := time.Now()
-	err := slowQuery()
+	err := slowQuery(ctx)
+
 	if err != nil {
 		log.Printf("Error: %s\n", err.Error())
 		return
@@ -31,21 +34,24 @@ func slowHandler(w http.ResponseWriter, req *http.Request) {
 func main() {
 	var err error
 
-	connstr := "host=localhost port=5432 user=alice password=pa$$word  dbname=wonderland sslmode=disable"
+	connstr := "host=localhost port=5432 user=postgres password=postgrespassword  dbname=wonderland sslmode=disable"
 
 	db, err = sql.Open("postgres", connstr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = db.Ping(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err = db.PingContext(ctx); err != nil {
 		log.Fatal(err)
 	}
 
 	srv := http.Server{
 		Addr:         "localhost:8000",
 		WriteTimeout: 2 * time.Second,
-		Handler:      http.HandlerFunc(slowHandler),
+		Handler:      http.TimeoutHandler(http.HandlerFunc(slowHandler), 1*time.Second, "Timeout!!!"),
 	}
 
 	if err := srv.ListenAndServe(); err != nil {

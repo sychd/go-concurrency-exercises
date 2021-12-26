@@ -7,6 +7,10 @@ type user struct {
 	email string
 }
 
+func (u user) String() string {
+	return "Name: " + u.name + " | Email: " + u.email
+}
+
 // TODO: Implement custom formating for user struct values.
 
 func main() {
